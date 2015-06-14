@@ -36,7 +36,6 @@ plt.imshow(data[:,:, axial_middle, 0].T, cmap='gray', origin='lower')
 plt.subplot(1,2,2).set_axis_off()
 plt.imshow(data[:,:, axial_middle, 10].T, cmap='gray', origin='lower')
 plt.show()
-plt.savefig('data.png', bbox_inches='tight')
 
 from dipy.io import read_bvals_bvecs
 bvals, bvecs = read_bvals_bvecs(file_bval, file_bvec)
@@ -53,3 +52,27 @@ S0s = data[:,:,:, gtab.b0s_mask]
 print(S0s.shape)
 
 nib.save(nib.Nifti1Image(S0s, image.get_affine()), 'teste_S0s.nii.gz')
+
+import numpy as np
+
+from dipy.segment.mask import median_otsu
+maskdata, mask = median_otsu(data, 3, 1, True, vol_idx=range(10,50), dilate=2)
+print('maskdata.shape (%d, %d, %d, %d)' % maskdata.shape)
+
+tensor_model = dti.TensorModel(gtab)
+
+tensor_fit = tensor_model(maskdata)
+
+print('Computing Anisotropy Measures(FA, MD, RGB)')
+
+from dipy.reconst.dti import fractional_anisotropy, color_fa, lower_triangular
+
+FA = fractional_anisotropy(tensor_fit.evals)
+
+FA[np.isnan(FA)] = 0
+
+fa_image = nib.Nifti1Image(FA.astype(np.float32), image.get_affine())
+nib.save(fa_image, 'tensor_fa.nii.gz')
+
+eigenvectors_image = nib.Nifti1Image(tenfit.evecs.astype(np.float32), image.get_affine())
+nib.save(eigenvectors_image, 'tensor_eigenvectors.nii.gz')
